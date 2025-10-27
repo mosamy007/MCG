@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سابقات الأعمال - المصرية للمقاولات</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <a href="index.html" class="logo-link">
+                        <img src="Logo dark for bright bg.svg" alt="El-Masreya Logo" class="logo">
+                        <div class="company-name">
+                            <h1 class="lang-specific lang-ar">المصرية للمقاولات</h1>
+                            <h1 class="lang-specific lang-en">El-Masreya Contracting</h1>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="language-toggle">
+                    <button class="lang-btn active" data-lang="ar">العربية</button>
+                    <button class="lang-btn" data-lang="en">English</button>
+                </div>
+                
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="container">
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html" class="nav-link lang-specific lang-ar">الرئيسية</a></li>
+                <li><a href="index.html" class="nav-link lang-specific lang-en">Home</a></li>
+                <li><a href="experience.html" class="nav-link active lang-specific lang-ar">سابقات الأعمال</a></li>
+                <li><a href="experience.html" class="nav-link active lang-specific lang-en">Previous Experience</a></li>
+                <li><a href="contact.html" class="nav-link lang-specific lang-ar">تواصل معنا</a></li>
+                <li><a href="contact.html" class="nav-link lang-specific lang-en">Contact Us</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Page Hero Section -->
+    <section class="page-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title lang-specific lang-ar">سابقات الأعمال</h1>
+                <h1 class="hero-title lang-specific lang-en">Previous Experience</h1>
+                <p class="hero-description lang-specific lang-ar">استكشف مشاريعنا السابقة وتعرف على جودة أعمالنا وخبرتنا في مجال المقاولات والبناء.</p>
+                <p class="hero-description lang-specific lang-en">Explore our previous projects and learn about the quality of our work and expertise in construction and building.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section class="gallery-section">
+        <div class="container">
+            <!-- Gallery Grid -->
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- Project cards loaded dynamically -->
+            </div>
+            
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p class="lang-specific lang-ar">جاري تحميل المشاريع...</p>
+                <p class="lang-specific lang-en">Loading projects...</p>
+            </div>
+            
+            <!-- No Projects Message -->
+            <div class="no-projects" id="noProjects" style="display: none;">
+                <i class="fas fa-folder-open"></i>
+                <h3 class="lang-specific lang-ar">لا توجد مشاريع متاحة</h3>
+                <h3 class="lang-specific lang-en">No projects available</h3>
+                <p class="lang-specific lang-ar">سيتم إضافة المشاريع قريباً.</p>
+                <p class="lang-specific lang-en">Projects will be added soon.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <img src="Logo bright for dark bg.svg" alt="El-Masreya Logo">
+                        <div>
+                            <h3 class="lang-specific lang-ar">المصرية للمقاولات</h3>
+                            <h3 class="lang-specific lang-en">El-Masreya Contracting</h3>
+                        </div>
+                    </div>
+                    <p class="lang-specific lang-ar">شركة رائدة في مجال المقاولات والبناء في مصر، نقدم خدمات عالية الجودة بأسعار تنافسية.</p>
+                    <p class="lang-specific lang-en">A leading construction company in Egypt, providing high-quality services at competitive prices.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-specific lang-ar">روابط سريعة</h4>
+                    <h4 class="lang-specific lang-en">Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html" class="lang-specific lang-ar">الرئيسية</a></li>
+                        <li><a href="index.html" class="lang-specific lang-en">Home</a></li>
+                        <li><a href="experience.html" class="lang-specific lang-ar">سابقات الأعمال</a></li>
+                        <li><a href="experience.html" class="lang-specific lang-en">Previous Experience</a></li>
+                        <li><a href="contact.html" class="lang-specific lang-ar">تواصل معنا</a></li>
+                        <li><a href="contact.html" class="lang-specific lang-en">Contact Us</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-specific lang-ar">تواصل معنا</h4>
+                    <h4 class="lang-specific lang-en">Contact Us</h4>
+                    <div class="contact-info">
+                        <p><i class="fas fa-phone"></i> +20 123 456 7890</p>
+                        <p><i class="fas fa-envelope"></i> info@elmasreya.com</p>
+                        <p><i class="fas fa-map-marker-alt"></i> <span class="lang-specific lang-ar">القاهرة، مصر</span><span class="lang-specific lang-en">Cairo, Egypt</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p class="lang-specific lang-ar">&copy; 2025 المصرية للمقاولات. جميع الحقوق محفوظة.</p>
+                <p class="lang-specific lang-en">&copy; 2025 El-Masreya Contracting. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="gallery.js"></script>
+</body>
+</html>
