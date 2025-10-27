@@ -1,0 +1,20 @@
+{
+  "name": "el-masreya-contracting",
+  "version": "1.0.0",
+  "description": "El-Masreya Contracting Company Website",
+  "scripts": {
+    "generate-manifest": "node generate-manifest.js",
+    "build": "node generate-manifest.js",
+    "watch": "nodemon -w Gallery -w images -x 'npm run generate-manifest'"
+  },
+  "keywords": [
+    "construction",
+    "contracting",
+    "egypt"
+  ],
+  "author": "El-Masreya Contracting",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

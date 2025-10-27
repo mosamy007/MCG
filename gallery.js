@@ -1,4 +1,4 @@
-// Modern Gallery - Dynamic project scanning
+// Modern Gallery - Uses manifest.json for project data
 class PhotoGallery {
     constructor() {
         this.galleryGrid = document.getElementById('galleryGrid');
@@ -12,41 +12,72 @@ class PhotoGallery {
 
     async init() {
         console.log('Gallery initializing...');
-        await this.scanProjects();
+        await this.loadProjects();
         this.applyLanguage();
     }
 
-    async scanProjects() {
+    async loadProjects() {
         if (!this.galleryGrid) return;
 
         this.showLoading();
 
         try {
-            console.log('Scanning for projects...');
+            console.log('Loading projects from manifest...');
             
-            // Try to scan Gallery directory
+            // Try to load from manifest.json
+            const response = await fetch('manifest.json');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load manifest: ${response.status}`);
+            }
+            
+            const manifest = await response.json();
+            console.log('Manifest loaded:', manifest);
+            
+            if (manifest.projects && manifest.projects.length > 0) {
+                this.jobs = manifest.projects;
+                console.log(`Found ${this.jobs.length} projects`);
+                this.renderGallery();
+            } else {
+                console.log('No projects found in manifest');
+                this.showNoProjects();
+            }
+            
+            this.hideLoading();
+            
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            console.log('Falling back to directory scanning...');
+            
+            // Fallback to directory scanning (will work locally but not on Vercel)
+            await this.scanProjectsFallback();
+        }
+    }
+
+    async scanProjectsFallback() {
+        try {
+            // Try directory scanning as fallback
             const projects = await this.scanGalleryDirectory();
             
             if (projects.length > 0) {
                 this.jobs = projects;
-                console.log('Found projects:', this.jobs);
+                console.log('Found projects via fallback:', this.jobs);
+                this.renderGallery();
             } else {
-                console.log('No projects found in Gallery directory');
                 this.showNoProjects();
             }
             
-            this.renderGallery();
             this.hideLoading();
-            
         } catch (error) {
-            console.error('Error scanning projects:', error);
+            console.error('Fallback scanning failed:', error);
             this.showNoProjects();
+            this.hideLoading();
         }
     }
 
     async scanGalleryDirectory() {
         try {
-            console.log('Fetching Gallery directory...');
+            console.log('Attempting directory scan...');
             const response = await fetch('./Gallery/');
             
             if (!response.ok) {
@@ -54,59 +85,44 @@ class PhotoGallery {
             }
             
             const html = await response.text();
-            console.log('Gallery directory HTML received');
-            
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const links = doc.querySelectorAll('a[href]');
-            
-            console.log('Found links:', links.length);
             
             const projects = [];
             let projectId = 1;
             
             for (const link of links) {
                 const href = link.getAttribute('href');
-                console.log('Processing link:', href);
                 
-                // Look for directories (end with / and not parent directory)
                 if (href && href.endsWith('/') && href !== '../' && href !== './') {
                     const folderName = href.replace('/', '').replace('./', '');
                     
-                    // Skip if it's the current directory marker
                     if (folderName === '' || folderName === '.') continue;
                     
-                    console.log('Found project folder:', folderName);
                     const project = await this.scanProjectFolder(folderName, projectId);
                     
                     if (project) {
                         projects.push(project);
                         projectId++;
-                        console.log('Successfully loaded project:', project.name, project.nameEn);
-                    } else {
-                        console.log('Failed to load project from folder:', folderName);
                     }
                 }
             }
             
-            console.log('Total projects found:', projects.length);
             return projects;
             
         } catch (error) {
-            console.log('Gallery directory scanning failed:', error);
-            // Try alternative scanning method
-            return await this.scanProjectDirectories();
+            console.log('Directory scanning not available:', error);
+            return [];
         }
     }
 
     async scanProjectFolder(folderName, projectId) {
         try {
-            console.log(`Scanning project folder: ${folderName}`);
             const folderPath = `Gallery/${folderName}`;
             const response = await fetch(folderPath);
             
             if (!response.ok) {
-                console.log(`Folder ${folderName} not accessible: ${response.status}`);
                 return null;
             }
             
@@ -118,8 +134,6 @@ class PhotoGallery {
             const images = [];
             let thumb = null;
             
-            console.log(`Found ${links.length} files in ${folderName}`);
-            
             links.forEach(link => {
                 const href = link.getAttribute('href');
                 if (href && this.isImageFile(href)) {
@@ -127,7 +141,6 @@ class PhotoGallery {
                     
                     if (href.toLowerCase() === 'thumb.jpg') {
                         thumb = imagePath;
-                        console.log(`Found thumbnail for ${folderName}: ${thumb}`);
                     } else {
                         images.push({
                             path: imagePath,
@@ -137,17 +150,14 @@ class PhotoGallery {
                 }
             });
             
-            // If no thumb found but we have images, use the first one
             if (!thumb && images.length > 0) {
                 thumb = images[0].path;
-                console.log(`Using first image as thumb for ${folderName}: ${thumb}`);
             }
             
             if (thumb) {
-                // Generate project name from folder name
                 const projectName = this.generateProjectName(folderName);
                 
-                const projectData = {
+                return {
                     id: projectId,
                     folder: folderName,
                     thumb: thumb,
@@ -158,11 +168,6 @@ class PhotoGallery {
                     descriptionEn: 'Distinguished construction project by El-Masreya Contracting',
                     category: this.detectCategory(folderName)
                 };
-                
-                console.log(`Created project data for ${folderName}:`, projectData);
-                return projectData;
-            } else {
-                console.log(`No thumbnail found for folder: ${folderName}`);
             }
             
             return null;
@@ -172,50 +177,7 @@ class PhotoGallery {
         }
     }
 
-    async scanProjectDirectories() {
-        console.log('Using alternative directory scanning method...');
-        
-        // Alternative method: try to manually check common folder patterns
-        const projects = [];
-        let projectId = 1;
-        
-        // Common folder patterns to try
-        const commonPatterns = [
-            'job1', 'job2', 'job3', 'job4', 'job5',
-            'project1', 'project2', 'project3', 'project4', 'project5',
-            'work1', 'work2', 'work3', 'work4', 'work5'
-        ];
-        
-        for (const folder of commonPatterns) {
-            const project = await this.scanProjectFolder(folder, projectId);
-            if (project) {
-                projects.push(project);
-                projectId++;
-            }
-        }
-        
-        // Also try to scan for any folders that might exist
-        // This is a fallback that tries to guess folder names
-        if (projects.length === 0) {
-            console.log('Trying to guess folder names...');
-            // You can add specific folder names you know exist here
-            const knownFolders = ['Phosphatic and Compound Fertilizers Complex-مجمع الأسمدة الفوسفاتية والمركبة بالعين السخنة'];
-            
-            for (const folder of knownFolders) {
-                const project = await this.scanProjectFolder(folder, projectId);
-                if (project) {
-                    projects.push(project);
-                    projectId++;
-                }
-            }
-        }
-        
-        console.log('Alternative scanning found projects:', projects.length);
-        return projects;
-    }
-
     generateProjectName(folderName) {
-        // Decode URL-encoded characters first
         let cleanName = folderName;
         try {
             cleanName = decodeURIComponent(folderName);
@@ -223,23 +185,16 @@ class PhotoGallery {
             console.log('Could not decode folder name:', folderName);
         }
         
-        // Remove special characters and clean up
         cleanName = cleanName
-            .replace(/%20/g, ' ') // Replace %20 with spaces
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/%20/g, ' ')
+            .replace(/\s+/g, ' ')
             .trim();
         
-        console.log('Processing folder name:', folderName, '->', cleanName);
-        
-        // Check if the name contains both English and Arabic (has a hyphen separator)
         const hyphenIndex = cleanName.indexOf('-');
         if (hyphenIndex > 0) {
             const englishPart = cleanName.substring(0, hyphenIndex).trim();
             const arabicPart = cleanName.substring(hyphenIndex + 1).trim();
             
-            console.log('Split names - English:', englishPart, 'Arabic:', arabicPart);
-            
-            // Check if arabicPart actually contains Arabic characters
             const hasArabic = /[\u0600-\u06FF]/.test(arabicPart);
             
             if (hasArabic && englishPart && arabicPart) {
@@ -250,7 +205,6 @@ class PhotoGallery {
             }
         }
         
-        // Check if the name is primarily Arabic (contains Arabic characters)
         const hasArabic = /[\u0600-\u06FF]/.test(cleanName);
         if (hasArabic) {
             return {
@@ -259,7 +213,6 @@ class PhotoGallery {
             };
         }
         
-        // Default: English name with Arabic prefix
         return {
             ar: `مشروع ${cleanName}`,
             en: cleanName
@@ -313,8 +266,6 @@ class PhotoGallery {
 
         const title = this.currentLang === 'ar' ? job.name : job.nameEn;
         const buttonText = this.currentLang === 'ar' ? 'عرض المشروع' : 'View Project';
-
-        console.log('Creating card for:', title);
 
         card.innerHTML = `
             <div class="project-image">
