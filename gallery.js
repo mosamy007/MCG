@@ -1,4 +1,4 @@
-// Modern Gallery - Hybrid approach for local and production
+// Modern Gallery - Dynamic project scanning
 class PhotoGallery {
     constructor() {
         this.galleryGrid = document.getElementById('galleryGrid');
@@ -24,23 +24,19 @@ class PhotoGallery {
         try {
             console.log('Scanning for projects...');
             
-            // Try directory scanning first (works locally)
-            let projects = await this.scanGalleryDirectory();
-            
-            // If directory scanning fails, use predefined projects (works on production)
-            if (projects.length === 0) {
-                console.log('Directory scanning failed, using predefined projects...');
-                projects = await this.getPredefinedProjects();
-            }
+            // Try to scan Gallery directory
+            const projects = await this.scanGalleryDirectory();
             
             if (projects.length > 0) {
                 this.jobs = projects;
                 console.log('Found projects:', this.jobs);
-                this.renderGallery();
-                this.hideLoading();
             } else {
+                console.log('No projects found in Gallery directory');
                 this.showNoProjects();
             }
+            
+            this.renderGallery();
+            this.hideLoading();
             
         } catch (error) {
             console.error('Error scanning projects:', error);
@@ -50,11 +46,68 @@ class PhotoGallery {
 
     async scanGalleryDirectory() {
         try {
-            console.log('Trying directory scanning...');
+            console.log('Fetching Gallery directory...');
             const response = await fetch('./Gallery/');
             
             if (!response.ok) {
-                throw new Error(`Directory listing not available: ${response.status}`);
+                throw new Error(`Cannot access Gallery directory: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            console.log('Gallery directory HTML received');
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const links = doc.querySelectorAll('a[href]');
+            
+            console.log('Found links:', links.length);
+            
+            const projects = [];
+            let projectId = 1;
+            
+            for (const link of links) {
+                const href = link.getAttribute('href');
+                console.log('Processing link:', href);
+                
+                // Look for directories (end with / and not parent directory)
+                if (href && href.endsWith('/') && href !== '../' && href !== './') {
+                    const folderName = href.replace('/', '').replace('./', '');
+                    
+                    // Skip if it's the current directory marker
+                    if (folderName === '' || folderName === '.') continue;
+                    
+                    console.log('Found project folder:', folderName);
+                    const project = await this.scanProjectFolder(folderName, projectId);
+                    
+                    if (project) {
+                        projects.push(project);
+                        projectId++;
+                        console.log('Successfully loaded project:', project.name, project.nameEn);
+                    } else {
+                        console.log('Failed to load project from folder:', folderName);
+                    }
+                }
+            }
+            
+            console.log('Total projects found:', projects.length);
+            return projects;
+            
+        } catch (error) {
+            console.log('Gallery directory scanning failed:', error);
+            // Try alternative scanning method
+            return await this.scanProjectDirectories();
+        }
+    }
+
+    async scanProjectFolder(folderName, projectId) {
+        try {
+            console.log(`Scanning project folder: ${folderName}`);
+            const folderPath = `Gallery/${folderName}`;
+            const response = await fetch(folderPath);
+            
+            if (!response.ok) {
+                console.log(`Folder ${folderName} not accessible: ${response.status}`);
+                return null;
             }
             
             const html = await response.text();
@@ -62,87 +115,54 @@ class PhotoGallery {
             const doc = parser.parseFromString(html, 'text/html');
             const links = doc.querySelectorAll('a[href]');
             
-            const projects = [];
-            let projectId = 1;
+            const images = [];
+            let thumb = null;
             
-            for (const link of links) {
+            console.log(`Found ${links.length} files in ${folderName}`);
+            
+            links.forEach(link => {
                 const href = link.getAttribute('href');
-                
-                if (href && href.endsWith('/') && href !== '../' && href !== './') {
-                    const folderName = href.replace('/', '').replace('./', '');
+                if (href && this.isImageFile(href)) {
+                    const imagePath = `${folderPath}/${href}`;
                     
-                    if (folderName === '' || folderName === '.') continue;
-                    
-                    console.log('Found folder:', folderName);
-                    const project = await this.scanProjectFolder(folderName, projectId);
-                    
-                    if (project) {
-                        projects.push(project);
-                        projectId++;
+                    if (href.toLowerCase() === 'thumb.jpg') {
+                        thumb = imagePath;
+                        console.log(`Found thumbnail for ${folderName}: ${thumb}`);
+                    } else {
+                        images.push({
+                            path: imagePath,
+                            name: href
+                        });
                     }
                 }
+            });
+            
+            // If no thumb found but we have images, use the first one
+            if (!thumb && images.length > 0) {
+                thumb = images[0].path;
+                console.log(`Using first image as thumb for ${folderName}: ${thumb}`);
             }
             
-            console.log('Directory scanning found:', projects.length, 'projects');
-            return projects;
-            
-        } catch (error) {
-            console.log('Directory scanning failed:', error.message);
-            return [];
-        }
-    }
-
-    async getPredefinedProjects() {
-        console.log('Loading predefined projects...');
-        
-        // This is where you manually define your projects
-        // Update this array with your actual folder names
-        const knownFolders = [
-            'job1',
-            'job2', 
-            'job3',
-            'job4',
-            'Phosphatic and Compound Fertilizers Complex-مجمع الأسمدة الفوسفاتية والمركبة بالعين السخنة'
-            // Add all your project folder names here
-        ];
-        
-        const projects = [];
-        let projectId = 1;
-        
-        for (const folderName of knownFolders) {
-            const project = await this.scanProjectFolder(folderName, projectId);
-            if (project) {
-                projects.push(project);
-                projectId++;
-            }
-        }
-        
-        console.log('Predefined projects found:', projects.length);
-        return projects;
-    }
-
-    async scanProjectFolder(folderName, projectId) {
-        try {
-            const folderPath = `Gallery/${folderName}`;
-            
-            // Try to load the thumbnail directly
-            const thumbPath = `${folderPath}/thumb.jpg`;
-            const thumbExists = await this.checkImageExists(thumbPath);
-            
-            if (thumbExists) {
+            if (thumb) {
+                // Generate project name from folder name
                 const projectName = this.generateProjectName(folderName);
                 
-                return {
+                const projectData = {
                     id: projectId,
                     folder: folderName,
-                    thumb: thumbPath,
-                    images: await this.getProjectImages(folderPath),
+                    thumb: thumb,
+                    images: images,
                     name: projectName.ar,
                     nameEn: projectName.en,
                     description: 'مشروع إنشائي متميز من المصرية للمقاولات',
                     descriptionEn: 'Distinguished construction project by El-Masreya Contracting',
                     category: this.detectCategory(folderName)
                 };
+                
+                console.log(`Created project data for ${folderName}:`, projectData);
+                return projectData;
+            } else {
+                console.log(`No thumbnail found for folder: ${folderName}`);
             }
             
             return null;
@@ -152,66 +172,72 @@ class PhotoGallery {
         }
     }
 
-    async getProjectImages(folderPath) {
-        // For production, we'll assume images are named sequentially
-        // You can customize this based on your actual image naming pattern
-        const images = [];
+    async scanProjectDirectories() {
+        console.log('Using alternative directory scanning method...');
         
-        // Try common image patterns
-        for (let i = 1; i <= 10; i++) {
-            const imagePath = `${folderPath}/${i}.jpg`;
-            const exists = await this.checkImageExists(imagePath);
-            if (exists) {
-                images.push({
-                    path: imagePath,
-                    name: `${i}.jpg`
-                });
+        // Alternative method: try to manually check common folder patterns
+        const projects = [];
+        let projectId = 1;
+        
+        // Common folder patterns to try
+        const commonPatterns = [
+            'job1', 'job2', 'job3', 'job4', 'job5',
+            'project1', 'project2', 'project3', 'project4', 'project5',
+            'work1', 'work2', 'work3', 'work4', 'work5'
+        ];
+        
+        for (const folder of commonPatterns) {
+            const project = await this.scanProjectFolder(folder, projectId);
+            if (project) {
+                projects.push(project);
+                projectId++;
             }
         }
         
-        // Also try other common extensions
-        const extensions = ['.jpeg', '.png', '.webp'];
-        for (const ext of extensions) {
-            const imagePath = `${folderPath}/image1${ext}`;
-            const exists = await this.checkImageExists(imagePath);
-            if (exists) {
-                images.push({
-                    path: imagePath,
-                    name: `image1${ext}`
-                });
-                break;
-            }
-        }
-        
-        return images;
-    }
-
-    async checkImageExists(url) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
+        // Also try to scan for any folders that might exist
+        // This is a fallback that tries to guess folder names
+        if (projects.length === 0) {
+            console.log('Trying to guess folder names...');
+            // You can add specific folder names you know exist here
+            const knownFolders = ['Phosphatic and Compound Fertilizers Complex-مجمع الأسمدة الفوسفاتية والمركبة بالعين السخنة'];
             
-            // Timeout after 2 seconds
-            setTimeout(() => resolve(false), 2000);
-        });
+            for (const folder of knownFolders) {
+                const project = await this.scanProjectFolder(folder, projectId);
+                if (project) {
+                    projects.push(project);
+                    projectId++;
+                }
+            }
+        }
+        
+        console.log('Alternative scanning found projects:', projects.length);
+        return projects;
     }
 
     generateProjectName(folderName) {
+        // Decode URL-encoded characters first
         let cleanName = folderName;
+        try {
+            cleanName = decodeURIComponent(folderName);
+        } catch (e) {
+            console.log('Could not decode folder name:', folderName);
+        }
         
         // Remove special characters and clean up
         cleanName = cleanName
-            .replace(/%20/g, ' ')
-            .replace(/\s+/g, ' ')
+            .replace(/%20/g, ' ') // Replace %20 with spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
             .trim();
+        
+        console.log('Processing folder name:', folderName, '->', cleanName);
         
         // Check if the name contains both English and Arabic (has a hyphen separator)
         const hyphenIndex = cleanName.indexOf('-');
         if (hyphenIndex > 0) {
             const englishPart = cleanName.substring(0, hyphenIndex).trim();
             const arabicPart = cleanName.substring(hyphenIndex + 1).trim();
+            
+            console.log('Split names - English:', englishPart, 'Arabic:', arabicPart);
             
             // Check if arabicPart actually contains Arabic characters
             const hasArabic = /[\u0600-\u06FF]/.test(arabicPart);
@@ -238,6 +264,13 @@ class PhotoGallery {
             ar: `مشروع ${cleanName}`,
             en: cleanName
         };
+    }
+
+    isImageFile(filename) {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+        return imageExtensions.some(ext => 
+            filename.toLowerCase().endsWith(ext)
+        );
     }
 
     detectCategory(folderName) {
@@ -276,9 +309,12 @@ class PhotoGallery {
     createPhotoCard(job) {
         const card = document.createElement('div');
         card.className = 'project-card';
+        card.dataset.id = job.id;
 
         const title = this.currentLang === 'ar' ? job.name : job.nameEn;
         const buttonText = this.currentLang === 'ar' ? 'عرض المشروع' : 'View Project';
+
+        console.log('Creating card for:', title);
 
         card.innerHTML = `
             <div class="project-image">
