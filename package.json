@@ -5,7 +5,9 @@
   "scripts": {
     "generate-manifest": "node generate-manifest.js",
     "build": "node generate-manifest.js",
-    "watch": "nodemon -w Gallery -w images -x 'npm run generate-manifest'"
+    "watch": "nodemon -w Gallery -w images -x 'npm run generate-manifest'",
+    "diagnose": "node diagnose.js",
+    "check": "node diagnose.js"
   },
   "keywords": [
     "construction",

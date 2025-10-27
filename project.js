@@ -1,17 +1,17 @@
-// Dynamic Project Loader with Fullscreen Image Viewer
+// Dynamic Project Loader with Fullscreen Image Viewer - Uses manifest.json
 class DynamicProjectLoader {
     constructor() {
         this.projectFolder = this.getProjectFolderFromURL();
         this.currentLang = localStorage.getItem('language') || 'ar';
         this.project = null;
         this.currentImageIndex = 0;
+        this.manifest = null;
         this.init();
     }
 
     getProjectFolderFromURL() {
         const params = new URLSearchParams(window.location.search);
         const folder = params.get('folder');
-        // Decode the folder name from URL
         return folder ? decodeURIComponent(folder) : null;
     }
 
@@ -29,23 +29,66 @@ class DynamicProjectLoader {
 
     async loadProject() {
         try {
+            console.log('Loading project:', this.projectFolder);
+            
+            // Try to load from manifest first
+            await this.loadManifest();
+            
+            if (this.manifest) {
+                // Find project in manifest
+                this.project = this.manifest.projects.find(p => 
+                    p.folder === this.projectFolder
+                );
+                
+                if (this.project) {
+                    console.log('Project found in manifest:', this.project);
+                    this.renderProject();
+                    return;
+                } else {
+                    console.log('Project not found in manifest, trying fallback...');
+                }
+            }
+            
+            // Fallback to directory scanning
             this.project = await this.scanProjectFolder(this.projectFolder);
             
             if (this.project) {
+                console.log('Project loaded via fallback:', this.project);
                 this.renderProject();
             } else {
                 this.showError('Project not found');
             }
+            
         } catch (error) {
             console.error('Error loading project:', error);
             this.showError('Error loading project');
         }
     }
 
+    async loadManifest() {
+        try {
+            console.log('Loading manifest...');
+            const response = await fetch('manifest.json');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load manifest: ${response.status}`);
+            }
+            
+            this.manifest = await response.json();
+            console.log('Manifest loaded successfully');
+            
+        } catch (error) {
+            console.log('Could not load manifest:', error);
+            this.manifest = null;
+        }
+    }
+
     async scanProjectFolder(folderName) {
         try {
+            console.log(`Attempting to scan project folder: ${folderName}`);
             const folderPath = `Gallery/${encodeURIComponent(folderName)}`;
             const response = await fetch(folderPath);
+            
             if (!response.ok) {
                 throw new Error('Folder not found');
             }
@@ -95,16 +138,14 @@ class DynamicProjectLoader {
     }
 
     generateProjectName(folderName) {
-        // Clean folder name and generate proper project name
         let cleanName = folderName
-            .replace(/[-_]/g, ' ') // Replace hyphens and underscores with spaces
-            .replace(/%20/g, ' ') // Replace %20 with spaces
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/[-_]/g, ' ')
+            .replace(/%20/g, ' ')
+            .replace(/\s+/g, ' ')
             .trim();
         
         console.log('Processing project folder name:', folderName, '->', cleanName);
         
-        // Check if the name contains both English and Arabic (has a hyphen separator)
         const hyphenIndex = cleanName.indexOf('-');
         if (hyphenIndex > 0) {
             const englishPart = cleanName.substring(0, hyphenIndex).trim();
@@ -112,7 +153,6 @@ class DynamicProjectLoader {
             
             console.log('Split project names - English:', englishPart, 'Arabic:', arabicPart);
             
-            // Check if arabicPart actually contains Arabic characters
             const hasArabic = /[\u0600-\u06FF]/.test(arabicPart);
             
             if (hasArabic) {
@@ -123,7 +163,6 @@ class DynamicProjectLoader {
             }
         }
         
-        // Check if the name is primarily Arabic (contains Arabic characters)
         const hasArabic = /[\u0600-\u06FF]/.test(cleanName);
         if (hasArabic) {
             return {
@@ -132,7 +171,6 @@ class DynamicProjectLoader {
             };
         }
         
-        // Default: English name with Arabic prefix
         return {
             ar: `مشروع ${cleanName}`,
             en: cleanName
@@ -149,14 +187,10 @@ class DynamicProjectLoader {
     renderProject() {
         if (!this.project) return;
 
-        // Update page title
         const title = this.currentLang === 'ar' ? this.project.name : this.project.nameEn;
         document.title = `${title} - المصرية للمقاولات`;
 
-        // Render hero section
         this.renderHero();
-
-        // Render gallery
         this.renderGallery();
     }
 
@@ -177,7 +211,7 @@ class DynamicProjectLoader {
         const mainImageContainer = document.getElementById('mainImageContainer');
         const thumbnailGallery = document.getElementById('thumbnailGallery');
 
-        if (!this.project.images.length) {
+        if (!this.project.images || this.project.images.length === 0) {
             this.showNoImages();
             return;
         }
@@ -187,9 +221,9 @@ class DynamicProjectLoader {
         mainImage.alt = this.project.name;
 
         // Make main image clickable for fullscreen
-        mainImageContainer.addEventListener('click', () => {
+        mainImageContainer.onclick = () => {
             this.openModal(0);
-        });
+        };
 
         // Generate thumbnails
         thumbnailGallery.innerHTML = this.project.images.map((img, index) => `
@@ -210,7 +244,6 @@ class DynamicProjectLoader {
     bindThumbnailEvents() {
         const thumbnails = document.querySelectorAll('.thumbnail');
         const mainImage = document.getElementById('mainImage');
-        const mainImageContainer = document.getElementById('mainImageContainer');
         
         thumbnails.forEach((thumb, index) => {
             thumb.addEventListener('click', () => {
@@ -227,11 +260,6 @@ class DynamicProjectLoader {
                 this.currentImageIndex = index;
             });
         });
-
-        // Make main image clickable for fullscreen from thumbnails too
-        mainImageContainer.addEventListener('click', () => {
-            this.openModal(this.currentImageIndex);
-        });
     }
 
     bindModalEvents() {
@@ -239,33 +267,36 @@ class DynamicProjectLoader {
         const modalClose = document.getElementById('modalClose');
         const modalPrev = document.getElementById('modalPrev');
         const modalNext = document.getElementById('modalNext');
-        const modalImage = document.getElementById('modalImage');
 
-        // Close modal
-        modalClose.addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        // Previous image
-        modalPrev.addEventListener('click', () => {
-            this.showPreviousImage();
-        });
-
-        // Next image
-        modalNext.addEventListener('click', () => {
-            this.showNextImage();
-        });
-
-        // Close modal on background click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+        if (modalClose) {
+            modalClose.addEventListener('click', () => {
                 this.closeModal();
-            }
-        });
+            });
+        }
+
+        if (modalPrev) {
+            modalPrev.addEventListener('click', () => {
+                this.showPreviousImage();
+            });
+        }
+
+        if (modalNext) {
+            modalNext.addEventListener('click', () => {
+                this.showNextImage();
+            });
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal();
+                }
+            });
+        }
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
-            if (modal.classList.contains('active')) {
+            if (modal && modal.classList.contains('active')) {
                 if (e.key === 'Escape') {
                     this.closeModal();
                 } else if (e.key === 'ArrowLeft') {
@@ -278,34 +309,38 @@ class DynamicProjectLoader {
     }
 
     openModal(imageIndex) {
-        if (!this.project.images.length) return;
+        if (!this.project.images || this.project.images.length === 0) return;
 
         this.currentImageIndex = imageIndex;
         const modal = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
 
-        modalImage.src = this.project.images[this.currentImageIndex].path;
-        modalImage.alt = this.project.name + ' - ' + (this.currentImageIndex + 1);
-        
-        modal.classList.add('active');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling
+        if (modal && modalImage) {
+            modalImage.src = this.project.images[this.currentImageIndex].path;
+            modalImage.alt = this.project.name + ' - ' + (this.currentImageIndex + 1);
+            
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     closeModal() {
         const modal = document.getElementById('imageModal');
-        modal.classList.remove('active');
-        document.body.style.overflow = ''; // Re-enable scrolling
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
     }
 
     showNextImage() {
-        if (this.project.images.length > 1) {
+        if (this.project.images && this.project.images.length > 1) {
             this.currentImageIndex = (this.currentImageIndex + 1) % this.project.images.length;
             this.updateModalImage();
         }
     }
 
     showPreviousImage() {
-        if (this.project.images.length > 1) {
+        if (this.project.images && this.project.images.length > 1) {
             this.currentImageIndex = (this.currentImageIndex - 1 + this.project.images.length) % this.project.images.length;
             this.updateModalImage();
         }
@@ -313,20 +348,27 @@ class DynamicProjectLoader {
 
     updateModalImage() {
         const modalImage = document.getElementById('modalImage');
-        modalImage.src = this.project.images[this.currentImageIndex].path;
-        modalImage.alt = this.project.name + ' - ' + (this.currentImageIndex + 1);
+        if (modalImage && this.project.images) {
+            modalImage.src = this.project.images[this.currentImageIndex].path;
+            modalImage.alt = this.project.name + ' - ' + (this.currentImageIndex + 1);
+        }
     }
 
     showNoImages() {
         const gallerySection = document.querySelector('.project-gallery-section');
         if (gallerySection) {
             gallerySection.innerHTML = `
-                <div class="no-images">
-                    <i class="fas fa-images"></i>
-                    <h3 class="lang-specific lang-ar">لا توجد صور متاحة</h3>
-                    <h3 class="lang-specific lang-en">No images available</h3>
+                <div class="container">
+                    <div class="no-images">
+                        <i class="fas fa-images"></i>
+                        <h3 class="lang-specific lang-ar">لا توجد صور متاحة</h3>
+                        <h3 class="lang-specific lang-en">No images available</h3>
+                    </div>
                 </div>
             `;
+            
+            // Apply language display
+            this.updateLanguageDisplay();
         }
     }
 
@@ -345,7 +387,6 @@ class DynamicProjectLoader {
         document.documentElement.dir = this.currentLang === 'ar' ? 'rtl' : 'ltr';
         document.documentElement.lang = this.currentLang;
 
-        // Update button states
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.lang === this.currentLang);
         });
@@ -357,19 +398,14 @@ class DynamicProjectLoader {
         this.currentLang = lang;
         localStorage.setItem('language', lang);
 
-        // Update HTML direction and language
         document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
         document.documentElement.lang = lang;
 
-        // Update button states
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.lang === lang);
         });
 
-        // Update language-specific content
         this.updateLanguageDisplay();
-
-        // Re-render hero with new language
         this.renderHero();
     }
 
@@ -394,6 +430,8 @@ class DynamicProjectLoader {
                     <span class="lang-specific lang-en">Back to Projects</span>
                 </a>
             `;
+            
+            this.updateLanguageDisplay();
         }
     }
 }

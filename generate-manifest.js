@@ -167,36 +167,60 @@ function generateProjectName(folderName) {
  */
 function scanHeroImages() {
     console.log('\nScanning hero images...');
+    console.log(`Looking in: ${path.resolve(IMAGES_DIR)}`);
     
     if (!fs.existsSync(IMAGES_DIR)) {
-        console.log(`Warning: Images directory not found: ${IMAGES_DIR}`);
+        console.log(`❌ Images directory not found: ${IMAGES_DIR}`);
         console.log('Creating images directory...');
         fs.mkdirSync(IMAGES_DIR, { recursive: true });
+        console.log('✓ Created images directory. Please add images and run again.');
         return [];
     }
     
     const files = fs.readdirSync(IMAGES_DIR);
+    console.log(`Found ${files.length} total files in images directory`);
+    
     const heroImages = [];
     
     files.forEach(file => {
         const filePath = path.join(IMAGES_DIR, file);
         const stat = fs.statSync(filePath);
         
+        if (stat.isDirectory()) {
+            console.log(`  ⊳ Skipping directory: ${file}`);
+            return;
+        }
+        
         if (stat.isFile() && isImageFile(file)) {
             // Skip thumbnails and logos
-            if (!file.toLowerCase().includes('thumb') && 
-                !file.toLowerCase().includes('logo')) {
-                heroImages.push({
-                    name: file,
-                    path: `images/${file}`,
-                    size: stat.size
-                });
-                console.log(`  ✓ ${file}`);
+            if (file.toLowerCase().includes('thumb')) {
+                console.log(`  ⊳ Skipping thumbnail: ${file}`);
+                return;
             }
+            if (file.toLowerCase().includes('logo')) {
+                console.log(`  ⊳ Skipping logo: ${file}`);
+                return;
+            }
+            
+            heroImages.push({
+                name: file,
+                path: `images/${file}`,
+                size: stat.size
+            });
+            console.log(`  ✓ ${file} (${(stat.size / 1024).toFixed(1)} KB)`);
+        } else if (stat.isFile()) {
+            console.log(`  ⊳ Skipping non-image: ${file}`);
         }
     });
     
-    console.log(`Found ${heroImages.length} hero images`);
+    console.log(`\n📊 Found ${heroImages.length} hero images`);
+    
+    if (heroImages.length === 0) {
+        console.log('\n⚠️  WARNING: No hero images found!');
+        console.log('   Add JPG/PNG images to the "images" folder');
+        console.log('   Example: images/1.jpg, images/2.jpg, etc.');
+    }
+    
     return heroImages;
 }
 
