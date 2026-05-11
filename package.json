@@ -1,0 +1,9 @@
+{
+  "name": "el-masreya-website",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "scan": "node update-portfolio.js",
+    "build": "node update-portfolio.js"
+  }
+}
